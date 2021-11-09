@@ -20,90 +20,77 @@
 
 
 
+
 # required packages
-library(tidyverse)
-library(corrplot)
-library(cluster)
-library(fpc)
-library(factoextra)  # for visualizing cluster results
-library(clValid)
-library(gbm)
+ library(tidyverse)
+ library(corrplot)
+ library(cluster)
+ library(fpc)
+ library(clValid)
 
 
-path="D:/Google Drive/2015 - LUCC TELECONECCIONES/Proyecto LATAM/Compartidos_varios/LZ_MPR/SELS/Manuscript for submittion/Ec&Soc/Resubmition/SELS_data_and_Rcodes"
+ 
+ 
 
+ 
+ 
 #-------------------#
-# IMPORT THE DATA #####
+# 1. IMPORT THE DATA 
 #-------------------#
 
 #variable's statistics per hexagon
-vars_standardized <- read_csv(paste0(path,"/SELS_input_data_40km_v3.csv"))
-str(vars_standardized)
+vars_standardized <- read_csv("/SELS_input_data_40km_v3.csv")
 
 # set column types
-#-----------#
 vars_standardized$UNQ<-as.character(vars_standardized$UNQ)
 vars_standardized$`Urbanization type` <- base::ordered(vars_standardized$`Urbanization type`, levels= c("rural", "small city", "medium city", "big city", "metropolis"))
 vars_standardized$`Anthropization century` <- base::ordered(vars_standardized$`Anthropization century`, levels= c( "y1700","y1800", "y1900", "y2000","wild"))
+str(vars_standardized)
 
 
-
-
-
-
-#---------------------------------------------------#
-# ACTIVATE IF TEST RUN 
-#vars_standardized<-vars_standardized[8000:8100,]
-#---------------------------------------------------#
-
-
-
-
-
-
-#------------------------#
-# CLUSTER MODEL (V6.3)  #####
-#-----------------------#
-
-# 1. CHECK MODEL V6 VARIABLES 
-
-# CORPLOT 
-ccor_P <- vars_standardized%>% 
-  select(-UNQ)%>%
-  mutate_if(is.factor,as.numeric)%>%
-  cor(method="pearson", use="complete.obs")
-
+# CHECK CORRELATIONS 
 ccor_S <- vars_standardized%>% 
   select(-UNQ)%>%
   mutate_if(is.factor,as.numeric)%>%
   cor(method="spearman", use="complete.obs")
 
-#corrplot(ccor_S, method = "number", main="spearman correlations", tl.col="black", type = "upper")
-#corrplot(ccor_P, method = "number", main="pearson correlations", tl.col="black", type = "upper")
+corrplot(ccor_S, method = "number", main="spearman correlations", tl.col="black", type = "upper")
 
 
 
 
 
 
-# 2. CLUSTERING 
+
+
+#-------------------#
+# 2. DISTANCE MATRIX  
+#-------------------#
 
 #define the weights: all = 1, except WBI variables that are weighted down to 0.25
 W<-c(rep(1,20), rep(0.25,4), rep(1,2))
-cbind(colnames(vars_standardized)[-1],W) #check weigths
+cbind(colnames(vars_standardized)[-1],W) #check correspondence variables-weights
 
 #calculate distance matrix
-GOWERdist<-daisy(vars_standardized[-1], metric="gower", weights=W) #gower distances for mixed data
+GOWERdist<-daisy(vars_standardized[-1], metric="gower", weights=W) #gower algorithm for mixed data
 
-#run the clustering analysis
+
+
+
+
+#-------------------#
+# 3. CLUSTERING 
+#-------------------#
+
+#run diana function - divisive hierarchical clustering
 DianaClust <- diana(GOWERdist, diss=TRUE, stop.at.k =16 )
-DianaClust$dc
+DianaClust$dc # divisive coefficient
+ 
 
 
-
-# all cutting options
-clus_models<-vars_standardized 
-clus_models$K5<-cutree(DianaClust, k = 5)
+# generate classifications cutting the tree at different heights
+clus_models<-vars_standardized #copy the input variables 
+clus_models$K5<-cutree(DianaClust, k = 5) #k indicates number of clusters
 clus_models$K6<-cutree(DianaClust, k = 6)
 clus_models$K7<-cutree(DianaClust, k = 7)
 clus_models$K8<-cutree(DianaClust, k = 8)
@@ -118,75 +105,69 @@ clus_models$K16<-cutree(DianaClust, k = 16)
 
 
 
-# save the clustering output
-write.table(clus_models, paste("clus_models_V6_3.csv",sep="/"), sep=",", row.names=F)
 
 
+#-----------------------------------#
+# 4. CLUSTERING PERFORMANCE METRICS
+#-----------------------------------#
+# Computes a number of distance based statistics, which can be used for cluster validation and deciding the optimal number of clusters
 
-
-
-
-
-# 3. CLUSTERS EVALUATION
-
-num_data<-vars_standardized[-1] %>%   mutate_if(is.factor,as.numeric)
-num_data$type_urbanization <-num_data$type_urbanization /4
-num_data$anthrop_century<-num_data$anthrop_century/5
-num_data <-as.matrix(num_data)
-
-summary(num_data)
-
-# stability metrics
-clmethods <- c("hierarchical","kmeans","pam","diana", "som")
-stability <- clValid(obj=num_data , nClust = 5:16,
-                  clMethods = clmethods, validation = "stability", metric="manhattan")
-
-ValidMetrics<- as.data.frame.table(stability@measures)%>% 
-  rename(Metric=Var1, K=Var2, ClustMethod=Var3, Value=Freq)
-
-#Internal validation metrics
-internal <- clValid(obj=num_data, nClust = 5:16,
-                     clMethods = clmethods, validation = "internal", metric="manhattan")
-internal2<- as.data.frame.table(internal@measures)%>% 
-  rename(Metric=Var1, K=Var2, ClustMethod=Var3, Value=Freq)
-
-ValidMetrics<-rbind(ValidMetrics,internal2)
-write.csv(ValidMetrics, "validation measures.csv" )
-
-
-#plot
-# ggplot(ValidMetrics, aes(x=K, y=Value, group=ClustMethod,col=ClustMethod))+
-#   geom_line()+facet_wrap("Metric", scales="free")
-
-
-
-#------------------#
-
-#cluster stats
+# compute cluster evaluation statistics
 clus_eval<- data.frame()
-col_IDs <- which(grepl("K",colnames(clus_models)))
+col_IDs <- which(grepl("K",colnames(clus_models))) #detect classification columns
 
 for (i in col_IDs){ 
   Kname<-colnames(clus_models[i])
   stats <- cluster.stats(d = GOWERdist, clustering=pull(clus_models,i), 
                          silhouette=TRUE, wgap=TRUE)
-  
-  print(summary(stats))
+  capture.output(stats, file = paste0("validation stats ",Kname, ".txt"))
   
   stats2<-data.frame(Kname, 
-                     #internal validation (characteristics of the clusters)
-                      avg.silwidth=stats$avg.silwidth, 
-                     dunn=stats$dunn,
-                     av.between=stats$average.between, 
-                     av.within=stats$average.within)
+                     avg.silwidth=stats$avg.silwidth, #average silhouette width
+                     dunn=stats$dunn, #minimum separation / maximum diameter
+                     av.between=stats$average.between,  #average distance between clusters
+                     av.within=stats$average.within) #average distance within clusters
   
   clus_eval <- rbind(clus_eval, stats2)
 }
 
 
-
 clus_eval$Kname <- factor(clus_eval$Kname, levels= paste0("K",5:16))
-write_csv(clus_eval, "optimal number of clusters.csv")
+
+
+
+
+
+
+#-----------------------------------#
+# 5. CLUSTERING METHOD COMPARISON
+#-----------------------------------#
+
+
+# data transformation: ordinal variables to double (proportions of 1)
+num_data<-vars_standardized[-1] %>%   mutate_if(is.factor,as.numeric)
+num_data$`Urbanization type` <-num_data$`Urbanization type`/length(unique(num_data$`Urbanization type`))
+num_data$`Anthropization century`<-num_data$`Anthropization century`/length(unique(num_data$`Anthropization century`))
+num_data <-as.matrix(num_data)
+
+summary(num_data) #check
+
+# stability metrics (WITH MANHATTAN DISTANCE ALGORITHM)
+clmethods <- c("agglomerative","kmeans","pam","diana","som")
+stability <- clValid(obj=num_data , nClust = 5:16,
+                  clMethods = clmethods, validation = "stability", metric="manhattan", maxitems=nrow(num_data))
+
+ValidMetrics<- as.data.frame.table(stability@measures)%>% 
+  rename(Metric=Var1, K=Var2, ClustMethod=Var3, Value=Freq)
+
+# internal validation metrics (WITH MANHATTAN DISTANCE ALGORITHM)
+internal <- clValid(obj=num_data, nClust = 5:16,
+                     clMethods = clmethods, validation = "internal", metric="manhattan", maxitems=nrow(num_data))
+internal2<- as.data.frame.table(internal@measures)%>% 
+  rename(Metric=Var1, K=Var2, ClustMethod=Var3, Value=Freq)
+
+ValidMetrics<-rbind(ValidMetrics,internal2)
+
 
 
 
