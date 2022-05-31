@@ -32,4 +32,3 @@ abreviated column names:  Full variables' names
 29           SER_CODE:          SER_code
 30         AVG_DISS_S:     avg_diss_SELS
 31         SELS_NAMES:         SELS_name
-32           geometry:          geometry
