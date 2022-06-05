@@ -1,3 +1,6 @@
+
+<a href="https://zenodo.org/badge/latestdoi/362671343"><img src="https://zenodo.org/badge/362671343.svg" alt="DOI"></a>
+
 THIS REPOSITORY CORRESPONDS TO THE FOLLOWING PUBLISHED STUDY: Zarbá, L., M. Piquer-Rodríguez, S. Boillat, C. Levers, I. Gasparri, T. Aide, N. L. Álvarez-Berríos, L. O. Anderson, E. Araoz, E. Arima, M. Batistella, M. Calderón-Loor, C. Echeverría, M. Gonzalez-Roglich, E. G. Jobbágy, S.-L. Mathez-Stiefel, C. Ramirez-Reyes, A. Pacheco, M. Vallejos, K. R. Young, and R. Grau. 2022. Mapping and characterizing social-ecological land systems of South America. Ecology and Society 27(2):27.
 https://doi.org/10.5751/ES-13066-270227
 
