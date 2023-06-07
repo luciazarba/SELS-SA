@@ -5,6 +5,8 @@ THIS REPOSITORY CORRESPONDS TO THE FOLLOWING PUBLISHED STUDY: Zarbá, L., M. Piq
 https://doi.org/10.5751/ES-13066-270227
 
 
+Datasets are available for download from this link: https://drive.google.com/open?id=1T1EbS1AEFuUfCWgWNHQAJi19rNg0uNgi&usp=drive_fs 
+
 Variables' names key: abreviated names - full names
 
 abreviated column names:  Full variables' names
